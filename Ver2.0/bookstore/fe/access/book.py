@@ -41,14 +41,16 @@ class BookDB:
 
     def get_book_count(self):
         conn = sqlite.connect(self.book_db)
-        cursor = conn.execute("SELECT count(id) FROM book")
+        cursor = self.conn.cursor()
+        conn.execute("SELECT count(id) FROM book")
         row = cursor.fetchone()
         return row[0]
 
     def get_book_info(self, start, size) -> [Book]:
         books = []
         conn = sqlite.connect(self.book_db)
-        cursor = conn.execute(
+        cursor = self.conn.cursor()
+        conn.execute(
             "SELECT id, title, author, "
             "publisher, original_title, "
             "translator, pub_year, pages, "
