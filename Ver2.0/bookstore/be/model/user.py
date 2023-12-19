@@ -57,7 +57,7 @@ class User(db_conn.DBConn):
         try:
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
-            self.conn.execute(
+            self.cursor.execute(
                 "INSERT into user(user_id, password, balance, token, terminal) "
                 "VALUES (%s, %s, %s, %s, %s);",
                 (user_id, password, 0, token, terminal),
@@ -69,7 +69,7 @@ class User(db_conn.DBConn):
 
     def check_token(self, user_id: str, token: str) -> (int, str):
         cursor = self.conn.cursor()
-        self.conn.execute("SELECT token from user where user_id=%s", (user_id,))
+        self.cursor.execute("SELECT token from user where user_id=%s", (user_id,))
         row = cursor.fetchone()
         if row is None:
             return error.error_authorization_fail()
@@ -80,7 +80,7 @@ class User(db_conn.DBConn):
 
     def check_password(self, user_id: str, password: str) -> (int, str):
         cursor = self.conn.cursor()
-        self.conn.execute(
+        self.cursor.execute(
             "SELECT password from user where user_id=%s", (user_id,)
         )
         row = cursor.fetchone()
@@ -101,7 +101,7 @@ class User(db_conn.DBConn):
 
             token = jwt_encode(user_id, terminal)
             cursor = self.conn.cursor()
-            self.conn.execute(
+            self.cursor.execute(
                 "UPDATE user set token= %s , terminal = %s where user_id = %s",
                 (token, terminal, user_id),
             )
@@ -124,7 +124,7 @@ class User(db_conn.DBConn):
             dummy_token = jwt_encode(user_id, terminal)
             
             cursor = self.conn.cursor()
-            self.conn.execute(
+            self.cursor.execute(
                 "UPDATE user SET token = %s, terminal = %s WHERE user_id=%s",
                 (dummy_token, terminal, user_id),
             )
@@ -145,7 +145,7 @@ class User(db_conn.DBConn):
                 return code, message
         
             cursor = self.conn.cursor()
-            self.conn.execute("DELETE from user where user_id=%s", (user_id,))
+            self.cursor.execute("DELETE from user where user_id=%s", (user_id,))
             if cursor.rowcount == 1:
                 self.conn.commit()
             else:
@@ -167,7 +167,7 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
             cursor = self.conn.cursor()
-            self.conn.execute(
+            self.cursor.execute(
                 "UPDATE user set password = %s, token= %s , terminal = %s where user_id = %s",
                 (new_password, token, terminal, user_id),
             )

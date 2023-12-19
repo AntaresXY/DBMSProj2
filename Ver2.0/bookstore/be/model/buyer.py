@@ -22,10 +22,10 @@ class Buyer(db_conn.DBConn):
             if not self.store_id_exist(store_id):
                 return error.error_non_exist_store_id(store_id) + (order_id,)
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
-
+            
+            cursor = self.conn.cursor()
             for book_id, count in id_and_count:
-                cursor = self.conn.cursor()
-                self.conn.execute(
+                self.cursor.execute(
                     "SELECT book_id, stock_level, book_info FROM store "
                     "WHERE store_id = %s AND book_id = %s;",
                     (store_id, book_id),
@@ -42,7 +42,7 @@ class Buyer(db_conn.DBConn):
                 if stock_level < count:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.conn.execute(
+                self.cursor.execute(
                     "UPDATE store set stock_level = stock_level - %s "
                     "WHERE store_id = %s and book_id = %s and stock_level >= %s; ",
                     (count, store_id, book_id, count),
@@ -50,13 +50,13 @@ class Buyer(db_conn.DBConn):
                 if cursor.rowcount == 0:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.conn.execute(
+                self.cursor.execute(
                     "INSERT INTO new_order_detail(order_id, book_id, count, price) "
                     "VALUES(%s, %s, %s, %s);",
                     (uid, book_id, count, price),
                 )
 
-            self.conn.execute(
+            self.cursor.execute(
                 "INSERT INTO new_order(order_id, store_id, user_id) "
                 "VALUES(%s, %s, %s);",
                 (uid, store_id, user_id),
@@ -76,7 +76,7 @@ class Buyer(db_conn.DBConn):
         conn = self.conn
         try:
             cursor = self.conn.cursor()
-            conn.execute(
+            cursor.execute(
                 "SELECT order_id, user_id, store_id FROM new_order WHERE order_id = %s",
                 (order_id,),
             )
@@ -91,7 +91,7 @@ class Buyer(db_conn.DBConn):
             if buyer_id != user_id:
                 return error.error_authorization_fail()
 
-            conn.execute(
+            cursor.execute(
                 "SELECT balance, password FROM user WHERE user_id = %s;", (buyer_id,)
             )
             row = cursor.fetchone()
@@ -101,7 +101,7 @@ class Buyer(db_conn.DBConn):
             if password != row[1]:
                 return error.error_authorization_fail()
 
-            conn.execute(
+            cursor.execute(
                 "SELECT store_id, user_id FROM user_store WHERE store_id = %s;",
                 (store_id,),
             )
@@ -114,7 +114,7 @@ class Buyer(db_conn.DBConn):
             if not self.user_id_exist(seller_id):
                 return error.error_non_exist_user_id(seller_id)
 
-            conn.execute(
+            cursor.execute(
                 "SELECT book_id, count, price FROM new_order_detail WHERE order_id = %s;",
                 (order_id,),
             )
@@ -127,7 +127,7 @@ class Buyer(db_conn.DBConn):
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
 
-            conn.execute(
+            cursor.execute(
                 "UPDATE user set balance = balance - %s"
                 "WHERE user_id = %s AND balance >= %s",
                 (total_price, buyer_id, total_price),
@@ -135,7 +135,7 @@ class Buyer(db_conn.DBConn):
             if cursor.rowcount == 0:
                 return error.error_not_sufficient_funds(order_id)
 
-            conn.execute(
+            cursor.execute(
                 "UPDATE user set balance = balance + %s" "WHERE user_id = %s",
                 (total_price, seller_id),
             )
@@ -143,13 +143,13 @@ class Buyer(db_conn.DBConn):
             if cursor.rowcount == 0:
                 return error.error_non_exist_user_id(seller_id)
 
-            conn.execute(
+            cursor.execute(
                 "DELETE FROM new_order WHERE order_id = %s", (order_id,)
             )
             if cursor.rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
-            conn.execute(
+            cursor.execute(
                 "DELETE FROM new_order_detail where order_id = %s", (order_id,)
             )
             if cursor.rowcount == 0:
@@ -168,7 +168,7 @@ class Buyer(db_conn.DBConn):
     def add_funds(self, user_id, password, add_value) -> (int, str):
         try:
             cursor = self.conn.cursor()
-            self.conn.execute(
+            self.cursor.execute(
                 "SELECT password  from user where user_id=%s", (user_id,)
             )
             row = cursor.fetchone()
@@ -178,7 +178,7 @@ class Buyer(db_conn.DBConn):
             if row[0] != password:
                 return error.error_authorization_fail()
 
-            self.conn.execute(
+            self.cursor.execute(
                 "UPDATE user SET balance = balance + %s WHERE user_id = %s",
                 (add_value, user_id),
             )

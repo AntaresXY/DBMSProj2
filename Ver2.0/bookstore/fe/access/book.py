@@ -42,7 +42,7 @@ class BookDB:
     def get_book_count(self):
         conn = sqlite.connect(self.book_db)
         cursor = self.conn.cursor()
-        conn.execute("SELECT count(id) FROM book")
+        cursor.execute("SELECT count(id) FROM book")
         row = cursor.fetchone()
         return row[0]
 
@@ -50,7 +50,7 @@ class BookDB:
         books = []
         conn = sqlite.connect(self.book_db)
         cursor = self.conn.cursor()
-        conn.execute(
+        cursor.execute(
             "SELECT id, title, author, "
             "publisher, original_title, "
             "translator, pub_year, pages, "
