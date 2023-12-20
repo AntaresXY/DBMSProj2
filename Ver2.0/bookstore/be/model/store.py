@@ -17,6 +17,7 @@ class Store:
     def init_tables(self):
         try:
             conn = self.get_db_conn()
+            cursor = conn.cursor()
             cursor.execute(
                 "CREATE TABLE IF NOT EXISTS user ("
                 "user_id TEXT PRIMARY KEY, password TEXT NOT NULL, "
