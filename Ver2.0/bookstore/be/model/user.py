@@ -1,5 +1,6 @@
 import jwt
 import time
+import pymysql
 import logging
 import sqlite3 as sqlite
 from be.model import error
@@ -19,7 +20,7 @@ def jwt_encode(user_id: str, terminal: str) -> str:
         key=user_id,
         algorithm="HS256",
     )
-    return encoded.decode("utf-8")
+    return encoded.encode("utf-8").decode("utf-8")
 
 
 # decode a JWT to a json string like:
@@ -57,6 +58,7 @@ class User(db_conn.DBConn):
         try:
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
+            self.cursor = self.conn.cursor()
             self.cursor.execute(
                 "INSERT into user(user_id, password, balance, token, terminal) "
                 "VALUES (%s, %s, %s, %s, %s);",
@@ -68,9 +70,9 @@ class User(db_conn.DBConn):
         return 200, "ok"
 
     def check_token(self, user_id: str, token: str) -> (int, str):
-        cursor = self.conn.cursor()
+        self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT token from user where user_id=%s", (user_id,))
-        row = cursor.fetchone()
+        row = self.cursor.fetchone()
         if row is None:
             return error.error_authorization_fail()
         db_token = row[0]
@@ -79,11 +81,11 @@ class User(db_conn.DBConn):
         return 200, "ok"
 
     def check_password(self, user_id: str, password: str) -> (int, str):
-        cursor = self.conn.cursor()
+        self.cursor = self.conn.cursor()
         self.cursor.execute(
             "SELECT password from user where user_id=%s", (user_id,)
         )
-        row = cursor.fetchone()
+        row = self.cursor.fetchone()
         if row is None:
             return error.error_authorization_fail()
 
@@ -100,14 +102,15 @@ class User(db_conn.DBConn):
                 return code, message, ""
 
             token = jwt_encode(user_id, terminal)
-            cursor = self.conn.cursor()
+            self.cursor = self.conn.cursor()
             self.cursor.execute(
                 "UPDATE user set token= %s , terminal = %s where user_id = %s",
                 (token, terminal, user_id),
             )
-            if cursor.rowcount == 0:
-                return error.error_authorization_fail() + ("",)
             self.conn.commit()
+            if self.cursor.rowcount == 0:
+                return error.error_authorization_fail() + ("",)
+            
         except pymysql.Error as e:
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
@@ -123,12 +126,12 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             dummy_token = jwt_encode(user_id, terminal)
             
-            cursor = self.conn.cursor()
+            self.cursor = self.conn.cursor()
             self.cursor.execute(
                 "UPDATE user SET token = %s, terminal = %s WHERE user_id=%s",
                 (dummy_token, terminal, user_id),
             )
-            if cursor.rowcount == 0:
+            if self.cursor.rowcount == 0:
                 return error.error_authorization_fail()
 
             self.conn.commit()
@@ -144,10 +147,10 @@ class User(db_conn.DBConn):
             if code != 200:
                 return code, message
         
-            cursor = self.conn.cursor()
+            self.cursor = self.conn.cursor()
             self.cursor.execute("DELETE from user where user_id=%s", (user_id,))
-            if cursor.rowcount == 1:
-                self.conn.commit()
+            if self.cursor.rowcount == 1:
+                pass
             else:
                 return error.error_authorization_fail()
         except pymysql.Error as e:
@@ -166,12 +169,12 @@ class User(db_conn.DBConn):
 
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
-            cursor = self.conn.cursor()
+            self.cursor = self.conn.cursor()
             self.cursor.execute(
                 "UPDATE user set password = %s, token= %s , terminal = %s where user_id = %s",
                 (new_password, token, terminal, user_id),
             )
-            if cursor.rowcount == 0:
+            if self.cursor.rowcount == 0:
                 return error.error_authorization_fail()
 
             self.conn.commit()

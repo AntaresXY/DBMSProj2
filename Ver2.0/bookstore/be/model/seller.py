@@ -24,12 +24,24 @@ class Seller(db_conn.DBConn):
                 return error.error_non_exist_store_id(store_id)
             if self.book_id_exist(store_id, book_id):
                 return error.error_exist_book_id(book_id)
-
+            
+            book_info_json = json.loads(book_json_str)
+            title = book_info_json.get("title")
+            tags = book_info_json.get("tags")
+            
+            if tags is not None:
+                tags = ",".join(tags)
+            author = book_info_json.get("author")
+            book_intro = book_info_json.get("book_intro")
+            price = book_info_json.get("price")
+            self.cursor = self.conn.cursor()
+            
             self.cursor.execute(
-                "INSERT into store(store_id, book_id, book_info, stock_level)"
-                "VALUES (%s, %s, %s, %s)",
-                (store_id, book_id, book_json_str, stock_level),
+                "INSERT into store(store_id, book_id, title, price, tags, author, book_intro, stock_level)"
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s);",
+                (store_id, book_id, title, price, tags, author, book_intro, stock_level)
             )
+            
             self.conn.commit()
         except pymysql.Error as e:
             return 528, "{}".format(str(e))
@@ -47,6 +59,8 @@ class Seller(db_conn.DBConn):
                 return error.error_non_exist_store_id(store_id)
             if not self.book_id_exist(store_id, book_id):
                 return error.error_non_exist_book_id(book_id)
+            
+            self.cursor = self.conn.cursor()            
 
             self.cursor.execute(
                 "UPDATE store SET stock_level = stock_level + %s "
@@ -62,6 +76,7 @@ class Seller(db_conn.DBConn):
 
     def create_store(self, user_id: str, store_id: str) -> (int, str):
         try:
+            self.cursor = self.conn.cursor()   
             if not self.user_id_exist(user_id):
                 return error.error_non_exist_user_id(user_id)
             if self.store_id_exist(store_id):
@@ -76,3 +91,5 @@ class Seller(db_conn.DBConn):
         except BaseException as e:
             return 530, "{}".format(str(e))
         return 200, "ok"
+    
+    

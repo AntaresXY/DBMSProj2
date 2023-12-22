@@ -1,11 +1,13 @@
 import logging
 import os
-import sqlite3 as sqlite
 import threading
+import sqlite3 as sqlite
 import pymysql
 import schedule
 import datetime
+import time
 
+start_time = time.time()
 
 class Store:
     database: str
@@ -18,46 +20,142 @@ class Store:
         try:
             conn = self.get_db_conn()
             cursor = conn.cursor()
+            cursor.execute("USE DBProj2;")
             cursor.execute(
                 "CREATE TABLE IF NOT EXISTS user ("
-                "user_id TEXT PRIMARY KEY, password TEXT NOT NULL, "
-                "balance INTEGER NOT NULL, token TEXT, terminal TEXT);"
+                "user_id VARCHAR(300) PRIMARY KEY, password VARCHAR(300) NOT NULL, "
+                "balance INTEGER NOT NULL, token VARCHAR(500), terminal VARCHAR(500), "
+                "INDEX index_user (user_id));"
             )
 
             cursor.execute(
-                "CREATE TABLE IF NOT EXISTS user_store("
-                "user_id TEXT, store_id, PRIMARY KEY(user_id, store_id));"
+                "CREATE TABLE IF NOT EXISTS user_store ("
+                "user_id VARCHAR(300), store_id VARCHAR(300) PRIMARY KEY,"
+                "FOREIGN KEY (user_id) REFERENCES user(user_id),"
+                "INDEX index_store (store_id))"
             )
 
             cursor.execute(
-                "CREATE TABLE IF NOT EXISTS store( "
-                "store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,"
-                " PRIMARY KEY(store_id, book_id))"
+                "CREATE TABLE IF NOT EXISTS store ("
+                "store_id VARCHAR(300), book_id VARCHAR(300), title VARCHAR(100), price INTEGER, "
+                "tags VARCHAR(100), author VARCHAR(100),"
+                "book_intro VARCHAR(2000),stock_level INTEGER,"
+                "PRIMARY KEY (store_id, book_id),"
+                "FOREIGN KEY (store_id) REFERENCES user_store(store_id),"
+                # 复合索引
+                "INDEX index_store_book (store_id, book_id),"
+                "FULLTEXT INDEX index_title(title),"
+                "FULLTEXT INDEX index_tags(tags),"
+                "FULLTEXT INDEX index_author(author),"
+                "FULLTEXT INDEX index_book_intro(book_intro))"
             )
 
             cursor.execute(
-                "CREATE TABLE IF NOT EXISTS new_order( "
-                "order_id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT)"
+                "CREATE TABLE IF NOT EXISTS new_order ("
+                "order_id VARCHAR(300) PRIMARY KEY , user_id VARCHAR(300), store_id VARCHAR(300), "
+                "time TIMESTAMP, status INTEGER,"
+                "FOREIGN KEY (user_id) REFERENCES user(user_id), "
+                "FOREIGN KEY (store_id) REFERENCES user_store(store_id),"
+                "INDEX index_order (order_id))"
             )
 
             cursor.execute(
-                "CREATE TABLE IF NOT EXISTS new_order_detail( "
-                "order_id TEXT, book_id TEXT, count INTEGER, price INTEGER,  "
-                "PRIMARY KEY(order_id, book_id))"
+                "CREATE TABLE IF NOT EXISTS orders ("
+                "order_id VARCHAR(300), book_id VARCHAR(300), count INTEGER, price INTEGER,"
+                "FOREIGN KEY (order_id) REFERENCES new_order(order_id),"
+                "PRIMARY KEY (order_id, book_id), "
+                "INDEX index_order_book (order_id, book_id))"
             )
 
             conn.commit()
-        except sqlite.Error as e:
+
+            def update_data():
+                cursor.execute("SELECT * from new_order WHERE status = 0")
+                row = cursor.fetchall()
+                for each in row:
+                    if (datetime.now() - each[3]).total_seconds() > 20:
+                        cursor.execute("UPDATE new_order SET status = -1 WHERE order_id = %s;", (each[0], ))
+                conn.commit()
+
+            schedule.every(1).second.do(update_data)
+
+            def run_schedule():
+                while time.time() - start_time < 10:
+                    schedule.run_pending()
+                    time.sleep(1)
+
+            schedule_thread = threading.Thread(target=run_schedule)
+            schedule_thread.start()
+        except pymysql.Error as e:
             logging.error(e)
             conn.rollback()
 
-    def get_db_conn(self) -> sqlite.Connection:
-        return sqlite.connect(self.database)
+        #     cursor.execute(
+        #         "CREATE TABLE IF NOT EXISTS user ("
+        #         "user_id VARCHAR(300) PRIMARY KEY, password VARCHAR(300) NOT NULL, "
+        #         "balance INTEGER NOT NULL, token VARCHAR(500), terminal VARCHAR(500), "
+        #         "INDEX index_user (user_id));"
+        #     )
+
+        #     cursor.execute(
+        #         "CREATE TABLE IF NOT EXISTS user_store ("
+        #         "user_id VARCHAR(300), store_id VARCHAR(300) PRIMARY KEY,"
+        #         "FOREIGN KEY (user_id) REFERENCES user(user_id),"
+        #         "INDEX index_store (store_id))"
+        #     )
+
+        #     cursor.execute(
+        #         "CREATE TABLE IF NOT EXISTS store ("
+        #         "store_id VARCHAR(300), book_id VARCHAR(300), book_info TEXT, stock_level INTEGER,"
+        #         "PRIMARY KEY (store_id, book_id))"
+        #     )
+
+        #     cursor.execute(
+        #         "CREATE TABLE IF NOT EXISTS new_order ("
+        #         "order_id VARCHAR(300) PRIMARY KEY, user_id VARCHAR(300), store_id VARCHAR(300), "
+        #         "time TIMESTAMP, status INTEGER,"
+        #         "FOREIGN KEY (user_id) REFERENCES user(user_id), "
+        #         "FOREIGN KEY (store_id) REFERENCES user_store(store_id),"
+        #         "INDEX index_order (order_id))"
+        #     )
+
+        #     cursor.execute(
+        #         "CREATE TABLE IF NOT EXISTS new_order_detail ("
+        #         "order_id VARCHAR(300), book_id VARCHAR(300), count INTEGER, price INTEGER,  "
+        #         "PRIMARY KEY(order_id, book_id))"
+        #     )
+
+        #     # 添加定时任务检查订单状态的触发器
+        #     cursor.execute(
+        #         "CREATE EVENT IF NOT EXISTS update_order_status "
+        #         "ON SCHEDULE EVERY 1 SECOND "
+        #         "DO "
+        #         "BEGIN "
+        #         "   UPDATE new_order "
+        #         "   SET status = -1 "
+        #         "   WHERE status = 0 AND TIMESTAMPDIFF(SECOND, time, NOW()) > 20; "
+        #         "END"
+        #     )
+
+        #     conn.commit()
+        # except pymysql.Error as e:
+        #     logging.error(e)
+        #     conn.rollback()
+
+
+    def get_db_conn(self):
+        return pymysql.connect(
+            host="127.0.0.1",
+            port=3306,
+            user="root",
+            password="021103",
+            database="DBProj2"
+        )
 
 
 database_instance: Store = None
 # global variable for database sync
-init_completed_event = threading.Event()
+# init_completed_event = threading.Event()
 
 
 def init_database(db_path):
