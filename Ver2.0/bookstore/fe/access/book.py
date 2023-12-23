@@ -15,8 +15,8 @@ class Book:
     pub_year: str
     pages: int
     price: int
-    currency_unit: str
     binding: str
+    currency_unit: str
     isbn: str
     author_intro: str
     book_intro: str
@@ -33,31 +33,25 @@ class BookDB:
     def __init__(self, large: bool = False):
         parent_path = os.path.dirname(os.path.dirname(__file__))
         self.db_s = os.path.join(parent_path, "data/book.db")
-        self.db_l = os.path.join(parent_path, "data/book_lx.db")
-        if large:
-            self.book_db = self.db_l
-        else:
-            self.book_db = self.db_s
+        self.book_db = self.db_s
 
     def get_book_count(self):
         conn = sqlite.connect(self.book_db)
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT count(id) FROM book")
+        cursor = conn.execute("SELECT count(id) FROM book")
         row = cursor.fetchone()
         return row[0]
 
     def get_book_info(self, start, size) -> [Book]:
         books = []
         conn = sqlite.connect(self.book_db)
-        cursor = self.conn.cursor()
-        cursor.execute(
+        cursor = conn.execute(
             "SELECT id, title, author, "
             "publisher, original_title, "
             "translator, pub_year, pages, "
             "price, currency_unit, binding, "
             "isbn, author_intro, book_intro, "
             "content, tags, picture FROM book ORDER BY id "
-            "LIMIT %s OFFSET %s",
+            "LIMIT ? OFFSET ?",
             (size, start),
         )
         for row in cursor:

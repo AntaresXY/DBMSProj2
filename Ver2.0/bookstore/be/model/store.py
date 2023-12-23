@@ -74,7 +74,11 @@ class Store:
                 row = cursor.fetchall()
                 for each in row:
                     if (datetime.now() - each[3]).total_seconds() > 20:
-                        cursor.execute("UPDATE new_order SET status = -1 WHERE order_id = %s;", (each[0], ))
+                        cursor.execute(
+                            "UPDATE new_order SET status = -1"
+                            "WHERE order_id = %s;", 
+                            (each[0], )
+                        )
                 conn.commit()
 
             schedule.every(1).second.do(update_data)
@@ -89,59 +93,6 @@ class Store:
         except pymysql.Error as e:
             logging.error(e)
             conn.rollback()
-
-        #     cursor.execute(
-        #         "CREATE TABLE IF NOT EXISTS user ("
-        #         "user_id VARCHAR(300) PRIMARY KEY, password VARCHAR(300) NOT NULL, "
-        #         "balance INTEGER NOT NULL, token VARCHAR(500), terminal VARCHAR(500), "
-        #         "INDEX index_user (user_id));"
-        #     )
-
-        #     cursor.execute(
-        #         "CREATE TABLE IF NOT EXISTS user_store ("
-        #         "user_id VARCHAR(300), store_id VARCHAR(300) PRIMARY KEY,"
-        #         "FOREIGN KEY (user_id) REFERENCES user(user_id),"
-        #         "INDEX index_store (store_id))"
-        #     )
-
-        #     cursor.execute(
-        #         "CREATE TABLE IF NOT EXISTS store ("
-        #         "store_id VARCHAR(300), book_id VARCHAR(300), book_info TEXT, stock_level INTEGER,"
-        #         "PRIMARY KEY (store_id, book_id))"
-        #     )
-
-        #     cursor.execute(
-        #         "CREATE TABLE IF NOT EXISTS new_order ("
-        #         "order_id VARCHAR(300) PRIMARY KEY, user_id VARCHAR(300), store_id VARCHAR(300), "
-        #         "time TIMESTAMP, status INTEGER,"
-        #         "FOREIGN KEY (user_id) REFERENCES user(user_id), "
-        #         "FOREIGN KEY (store_id) REFERENCES user_store(store_id),"
-        #         "INDEX index_order (order_id))"
-        #     )
-
-        #     cursor.execute(
-        #         "CREATE TABLE IF NOT EXISTS new_order_detail ("
-        #         "order_id VARCHAR(300), book_id VARCHAR(300), count INTEGER, price INTEGER,  "
-        #         "PRIMARY KEY(order_id, book_id))"
-        #     )
-
-        #     # 添加定时任务检查订单状态的触发器
-        #     cursor.execute(
-        #         "CREATE EVENT IF NOT EXISTS update_order_status "
-        #         "ON SCHEDULE EVERY 1 SECOND "
-        #         "DO "
-        #         "BEGIN "
-        #         "   UPDATE new_order "
-        #         "   SET status = -1 "
-        #         "   WHERE status = 0 AND TIMESTAMPDIFF(SECOND, time, NOW()) > 20; "
-        #         "END"
-        #     )
-
-        #     conn.commit()
-        # except pymysql.Error as e:
-        #     logging.error(e)
-        #     conn.rollback()
-
 
     def get_db_conn(self):
         return pymysql.connect(
